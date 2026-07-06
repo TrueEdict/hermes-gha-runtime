@@ -1,0 +1,36 @@
+name: Hermes Real Request
+
+on:
+  push:
+    paths:
+      - 'hermes-real-requests/*.json'
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      OPENCODE_AUTH_JSON_PRIMARY: ${{ secrets.OPENCODE_AUTH_JSON_PRIMARY }}
+      OPENCODE_AUTH_JSON_FALLBACK: ${{ secrets.OPENCODE_AUTH_JSON_FALLBACK }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - id: req
+        run: |
+          f=$(git diff --name-only HEAD^ HEAD -- 'hermes-real-requests/*.json' | tail -n 1)
+          test -n "$f"
+          echo "path=$f" >> "$GITHUB_OUTPUT"
+      - id: auth
+        run: python3 scripts/opencode_auth_to_hermes.py
+      - uses: TrueEdict/hermes-action@master
+        with:
+          prompt: 'Read ${{ steps.req.outputs.path }} and execute the task described in that JSON file.'
+          toolsets: 'safe,file'
+          provider: ${{ steps.auth.outputs.provider }}
+          output-file: 'hermes-response.md'
+          timeout-seconds: '600'
+          extra-env: '-e ${{ steps.auth.outputs.env_name }}'
