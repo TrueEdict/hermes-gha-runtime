@@ -1,0 +1,48 @@
+name: Hermes Real Persist
+
+on:
+  push:
+    paths:
+      - 'hermes-persist-requests/*.json'
+
+permissions:
+  contents: write
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      OPENCODE_AUTH_JSON_PRIMARY: ${{ secrets.OPENCODE_AUTH_JSON_PRIMARY }}
+      OPENCODE_AUTH_JSON_FALLBACK: ${{ secrets.OPENCODE_AUTH_JSON_FALLBACK }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - id: req
+        run: |
+          f=$(git diff --name-only HEAD^ HEAD -- 'hermes-persist-requests/*.json' | tail -n 1)
+          test -n "$f"
+          echo "path=$f" >> "$GITHUB_OUTPUT"
+      - id: auth
+        run: python3 scripts/opencode_auth_to_hermes.py
+      - uses: TrueEdict/hermes-action@master
+        with:
+          prompt: 'Read ${{ steps.req.outputs.path }} and execute the task described in that JSON file.'
+          toolsets: 'safe,file'
+          provider: ${{ steps.auth.outputs.provider }}
+          output-file: 'hermes-response.md'
+          timeout-seconds: '600'
+          extra-env: '-e ${{ steps.auth.outputs.env_name }}'
+      - name: Persist response
+        if: always()
+        run: |
+          mkdir -p hermes-results
+          cp hermes-response.md hermes-results/response-${GITHUB_RUN_ID}.md 2>/dev/null || true
+          git config user.name hermes-proof-bot
+          git config user.email hermes-proof-bot@users.noreply.github.com
+          git add hermes-results || true
+          git diff --cached --quiet && exit 0
+          git commit -m "Persist Hermes response run=${GITHUB_RUN_ID}"
+          git pull --rebase origin main
+          git push origin HEAD:main
