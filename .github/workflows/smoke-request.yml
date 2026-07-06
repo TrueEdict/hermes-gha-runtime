@@ -1,0 +1,31 @@
+name: Hermes Smoke Request
+
+on:
+  push:
+    paths:
+      - 'hermes-requests/*.json'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check provider secret
+        run: test -n "$OPENROUTER_API_KEY"
+
+      - name: Run Hermes
+        uses: ./
+        with:
+          prompt: 'Read README.md and summarize this repository in three sentences. Do not modify files.'
+          toolsets: 'safe,file'
+          provider: 'openrouter'
+          model: 'deepseek/deepseek-chat'
+          output-file: 'hermes-response.md'
+          timeout-seconds: '300'
