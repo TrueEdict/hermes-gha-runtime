@@ -1,0 +1,70 @@
+name: 'Hermes Action'
+description: 'Run Hermes Agent inside GitHub Actions.'
+author: 'TrueEdict'
+
+inputs:
+  prompt:
+    required: true
+    description: 'Task for Hermes.'
+  toolsets:
+    required: false
+    default: 'safe,file'
+  model:
+    required: false
+  provider:
+    required: false
+  output-file:
+    required: false
+    default: 'hermes-response.md'
+  timeout-seconds:
+    required: false
+    default: '300'
+  accept-all:
+    required: false
+    default: 'false'
+
+outputs:
+  response-file:
+    description: 'Hermes response path.'
+    value: ${{ steps.run.outputs.response_file }}
+  exit-code:
+    description: 'Hermes process exit code.'
+    value: ${{ steps.run.outputs.exit_code }}
+
+runs:
+  using: 'composite'
+  steps:
+    - id: prepare
+      shell: bash
+      run: |
+        cat > /tmp/hermes-prompt.txt <<'EOF'
+        ${{ inputs.prompt }}
+        EOF
+
+    - id: run
+      shell: bash
+      env:
+        HERMES_WORKSPACE: ${{ github.workspace }}
+        HERMES_PROMPT_FILE: /tmp/hermes-prompt.txt
+        HERMES_OUTPUT_FILE: ${{ inputs.output-file }}
+        HERMES_TIMEOUT: ${{ inputs.timeout-seconds }}
+        HERMES_TOOLSETS: ${{ inputs.toolsets }}
+        HERMES_MODEL: ${{ inputs.model }}
+        HERMES_PROVIDER: ${{ inputs.provider }}
+        HERMES_ACCEPT_ALL: ${{ inputs.accept-all }}
+      run: |
+        set +e
+        bash "${{ github.action_path }}/scripts/run_hermes.sh"
+        rc=$?
+        set -e
+        echo "exit_code=$rc" >> "$GITHUB_OUTPUT"
+        echo "response_file=${{ inputs.output-file }}" >> "$GITHUB_OUTPUT"
+        exit "$rc"
+
+    - if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: hermes-response-${{ github.run_id }}
+        path: ${{ inputs.output-file }}
+        if-no-files-found: warn
+        retention-days: 7
