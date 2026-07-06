@@ -1,0 +1,24 @@
+name: Hermes Auth Smoke
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: auth
+        env:
+          OPENCODE_AUTH_JSON_PRIMARY: ${{ secrets.OPENCODE_AUTH_JSON_PRIMARY }}
+          OPENCODE_AUTH_JSON_FALLBACK: ${{ secrets.OPENCODE_AUTH_JSON_FALLBACK }}
+        run: python3 scripts/opencode_auth_to_hermes.py
+      - uses: ./
+        with:
+          prompt: 'Reply with exactly HERMES_AUTH_OK.'
+          toolsets: 'safe'
+          provider: ${{ steps.auth.outputs.provider }}
+          output-file: 'hermes-auth-response.md'
