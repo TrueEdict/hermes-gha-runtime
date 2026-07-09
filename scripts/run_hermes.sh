@@ -26,11 +26,21 @@ docker_args=(
   -e HERMES_SOURCE=github-action
 )
 
-for key in OPENROUTER_API_KEY OPENAI_API_KEY ANTHROPIC_API_KEY DEEPSEEK_API_KEY; do
+for key in OPENROUTER_API_KEY OPENAI_API_KEY ANTHROPIC_API_KEY DEEPSEEK_API_KEY NOUS_API_KEY OPENCODE_GO_API_KEY KAGGLE_USERNAME KAGGLE_KEY; do
   if [ -n "${!key:-}" ]; then
     docker_args+=( -e "$key" )
   fi
 done
+
+if [ -n "${HERMES_EXTRA_ENV:-}" ]; then
+  read -ra extra_args <<< "$HERMES_EXTRA_ENV"
+  for arg in "${extra_args[@]}"; do
+    if [ "$arg" = "-e" ]; then
+      continue
+    fi
+    docker_args+=( -e "$arg" )
+  done
+fi
 
 hermes_args=(
   -z "$(cat "$PROMPT_FILE")"

@@ -22,6 +22,9 @@ inputs:
   accept-all:
     required: false
     default: 'false'
+  extra-env:
+    required: false
+    description: 'Extra environment variables to pass to the docker container'
 
 outputs:
   response-file:
@@ -37,9 +40,9 @@ runs:
     - id: prepare
       shell: bash
       run: |
-        cat > /tmp/hermes-prompt.txt <<'EOF'
+        cat > /tmp/hermes-prompt.txt <<'EOF_HERMES_PROMPT_BOUNDARY'
         ${{ inputs.prompt }}
-        EOF
+        EOF_HERMES_PROMPT_BOUNDARY
 
     - id: run
       shell: bash
@@ -52,6 +55,7 @@ runs:
         HERMES_MODEL: ${{ inputs.model }}
         HERMES_PROVIDER: ${{ inputs.provider }}
         HERMES_ACCEPT_ALL: ${{ inputs.accept-all }}
+        HERMES_EXTRA_ENV: ${{ inputs.extra-env }}
       run: |
         set +e
         bash "${{ github.action_path }}/scripts/run_hermes.sh"
